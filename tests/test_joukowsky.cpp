@@ -102,6 +102,26 @@ static void test_cambered_airfoil_is_asymmetric() {
           std::abs(max_y + min_y) > 1e-3);
 }
 
+// dz2w(z) = 1 - a^2/z^2
+// For a=1, z=2:   f'(2)  = 1 - 1/4   = 0.75
+// For a=1, z=i:   f'(i)  = 1 - (-1)  = 2.0
+// For a=1, z=1:   f'(1)  = 0          (critical point → trailing edge)
+static void test_dz2w_known() {
+    JoukowskyTransform jt(1.0, {0.0, 0.0});
+    check_near("dz2w a=1 z=2",          jt.dz2w({2.0, 0.0}), {0.75, 0.0});
+    check_near("dz2w a=1 z=i",          jt.dz2w({0.0, 1.0}), {2.0,  0.0});
+    check_near("dz2w a=1 z=1 (crit)",   jt.dz2w({1.0, 0.0}), {0.0,  0.0});
+}
+
+// dz2w is consistent with z2w: finite-difference check
+static void test_dz2w_matches_finite_difference() {
+    JoukowskyTransform jt(1.5, {-0.1, 0.05});
+    std::complex<double> z(2.5, 0.8);
+    double h = 1e-6;
+    std::complex<double> fd = (jt.z2w(z + h) - jt.z2w(z - h)) / (2.0 * h);
+    check_near("dz2w matches finite difference", jt.dz2w(z), fd, 1e-8);
+}
+
 int main() {
     std::printf("=== Joukowsky transform ===\n");
     test_z2w_known();
@@ -110,6 +130,8 @@ int main() {
     test_w2z_returns_exterior();
     test_symmetric_airfoil_real_axis();
     test_cambered_airfoil_is_asymmetric();
+    test_dz2w_known();
+    test_dz2w_matches_finite_difference();
 
     std::printf("\n%s (%d failure(s))\n", failures ? "FAILED" : "PASSED", failures);
     return failures ? 1 : 0;

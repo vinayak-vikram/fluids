@@ -8,17 +8,16 @@
 class BoundaryValueBuilder {
 public:
     BoundaryValueBuilder(const JoukowskyTransform& jt,
-                         double a, std::complex<double> b,
                          std::complex<double> hinge, int n);
+    // stream-function values
     std::vector<double> build(double omega) const;
-    double circleRadius() const;
+
+    double circleRadius() const { return jt.circleRadius(); }
 
 private:
     const JoukowskyTransform& jt;
-    double a;
-    std::complex<double> b;
-    std::complex<double> hinge;
-    int n;
+    std::complex<double>      hinge;
+    int                       n;
 };
 
 #endif

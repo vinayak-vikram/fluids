@@ -25,10 +25,6 @@ static void check_near(const char* name, double got, double expected, double tol
 // V_wing = iω(2cosθ - 0) = 2iω cosθ
 //
 // g(θ) = Re(V_wing · conj(f'(z)) · e^{-iθ})
-//       = Re(2iω cosθ · (1 - e^{2iθ}) · e^{-iθ})
-//       = Re(2iω cosθ · (e^{-iθ} - e^{iθ}))
-//       = Re(2iω cosθ · (-2i sinθ))
-//       = Re(4ω cosθ sinθ)
 //       = 2ω sin(2θ)                    ← zero mean: no correction needed
 //
 // ψ(θ) = r · ∫₀^θ 2ω sin(2φ) dφ = ω(1 - cos 2θ)
@@ -37,12 +33,12 @@ static void check_near(const char* name, double got, double expected, double tol
 
 static void test_flat_plate_known_values() {
     JoukowskyTransform jt(1.0, {0.0, 0.0});
-    BoundaryValueBuilder bb(jt, 1.0, {0.0, 0.0}, {0.0, 0.0}, 2000);
+    BoundaryValueBuilder bb(jt, {0.0, 0.0}, 2000);
     double omega = 3.0;
     auto psi = bb.build(omega);
     int n = (int)psi.size();
 
-    check_near("flat plate psi(0)   = 0",     psi[0],      0.0,     1e-10);
+    check_near("flat plate psi(0)    = 0",    psi[0],      0.0,     1e-10);
     check_near("flat plate psi(pi/2) = 2w",   psi[n / 4],  2*omega, 1e-2);
     check_near("flat plate psi(pi)   = 0",    psi[n / 2],  0.0,     1e-2);
     check_near("flat plate psi(3pi/2)= 2w",   psi[3*n/4],  2*omega, 1e-2);
@@ -50,7 +46,7 @@ static void test_flat_plate_known_values() {
 
 static void test_zero_omega_gives_zero_psi() {
     JoukowskyTransform jt(1.0, {-0.1, 0.05});
-    BoundaryValueBuilder bb(jt, 1.0, {-0.1, 0.05}, {0.0, 0.0}, 500);
+    BoundaryValueBuilder bb(jt, {0.0, 0.0}, 500);
     auto psi = bb.build(0.0);
     bool all_zero = true;
     for (double v : psi) if (std::abs(v) > 1e-12) all_zero = false;
@@ -59,14 +55,13 @@ static void test_zero_omega_gives_zero_psi() {
 
 static void test_output_size() {
     JoukowskyTransform jt(1.0, {-0.1, 0.0});
-    BoundaryValueBuilder bb(jt, 1.0, {-0.1, 0.0}, {0.0, 0.0}, 300);
+    BoundaryValueBuilder bb(jt, {0.0, 0.0}, 300);
     check("output size equals n", (int)bb.build(1.0).size() == 300);
 }
 
 static void test_linearity_in_omega() {
-    // ψ scales linearly with ω (BC is linear in V_wing which is linear in ω)
     JoukowskyTransform jt(1.5, {-0.1, 0.05});
-    BoundaryValueBuilder bb(jt, 1.5, {-0.1, 0.05}, {-0.5, 0.0}, 400);
+    BoundaryValueBuilder bb(jt, {-0.5, 0.0}, 400);
     auto psi1 = bb.build(1.0);
     auto psi2 = bb.build(3.0);
     bool linear = true;
@@ -76,26 +71,20 @@ static void test_linearity_in_omega() {
 }
 
 static void test_periodicity() {
-    // ψ must be periodic: the last step of the integration should bring us
-    // back to ψ(0) = 0.  This is enforced by the mean-g correction.
     JoukowskyTransform jt(1.0, {-0.08, 0.04});
     int n = 800;
-    BoundaryValueBuilder bb(jt, 1.0, {-0.08, 0.04}, {0.0, 0.0}, n);
+    BoundaryValueBuilder bb(jt, {0.0, 0.0}, n);
     double r = bb.circleRadius();
     auto psi = bb.build(2.0);
-    // Reconstruct what psi[n] would be (one more step)
-    // Can't do that directly, but check psi[n-1] is close to 0 after the last step
-    // i.e. psi[n-1] ≈ -r * g[n-1] * dtheta ≈ 0 implies near-periodicity.
-    // Simpler: check psi[n/2] stays in a reasonable range and psi[0] = 0.
-    check_near("periodicity: psi[0] = 0",      psi[0],        0.0, 1e-10);
+    check_near("periodicity: psi[0] = 0",      psi[0],   0.0, 1e-10);
     check("periodicity: psi bounded by r*2pi", std::abs(psi[n/4]) < r * 2.0 * M_PI);
 }
 
 static void test_circle_radius() {
     JoukowskyTransform jt(2.0, {-0.3, 0.1});
-    BoundaryValueBuilder bb(jt, 2.0, {-0.3, 0.1}, {0.0, 0.0}, 100);
-    double expected = std::abs(std::complex<double>(2.0, 0.0) - std::complex<double>(-0.3, 0.1));
-    check_near("circleRadius() = |a - b|", bb.circleRadius(), expected, 1e-12);
+    BoundaryValueBuilder bb(jt, {0.0, 0.0}, 100);
+    double expected = jt.circleRadius();
+    check_near("circleRadius() delegates to jt", bb.circleRadius(), expected, 1e-12);
 }
 
 int main() {
