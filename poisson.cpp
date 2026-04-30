@@ -13,9 +13,9 @@ double PoissonSolver::calculateKernel(double r, double theta, double phi) const 
     double den = r0_sq - (2 * r0 * r * std::cos(diff)) + r_sq;
    
     // point on boundary causes div. by 0, fallback by kernel properties
-    if (std::abs(denominator) < 1e-9) return 0.0; 
+    if (std::abs(den) < 1e-9) return 0.0;
 
-    return numerator / denominator;
+    return num / den;
 }
 
 double PoissonSolver::solveInternal(double r, double theta, const std::vector<double>& boundaryValues) const {
@@ -24,7 +24,7 @@ double PoissonSolver::solveInternal(double r, double theta, const std::vector<do
     double sum = 0.0;
     //riemann sum impl, should be computationally pretty doable for smallish n?
     for (int i = 0; i < n; ++i) {
-        double phi = i * dphi; //curr angle on the boundary
+        double phi = i * dphi; //quant
         double dP = calculateKernel(r, theta, phi);
 	sum += dP * boundaryValues[i] * dphi;
     }
