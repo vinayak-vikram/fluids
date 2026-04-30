@@ -103,6 +103,59 @@ static void test_integral_theta_independence_at_origin() {
     check_near("integral at origin independent of theta (0 vs 2.7)", v0, v2, 1e-10);
 }
 
+// --- exterior kernel tests ---
+
+static void test_exterior_kernel_positive_outside() {
+    // For r > r0, exterior kernel must be positive
+    PoissonSolver ps(1.0);
+    bool all_pos = true;
+    for (int i = 0; i < 8; ++i) {
+        double phi = i * M_PI / 4.0;
+        if (ps.calculateExteriorKernel(3.0, 0.0, phi) <= 0.0) all_pos = false;
+    }
+    check("exterior kernel positive for r > r0", all_pos);
+}
+
+static void test_exterior_kernel_negates_interior() {
+    // Interior and exterior kernels are negatives of each other (same denominator, flipped numerator)
+    PoissonSolver ps(2.0);
+    double ki = ps.calculateKernel(1.0, 0.3, 1.1);
+    double ke = ps.calculateExteriorKernel(1.0, 0.3, 1.1);
+    check_near("exterior kernel = -interior kernel", ke, -ki);
+}
+
+static void test_exterior_kernel_boundary_singularity() {
+    PoissonSolver ps(2.0);
+    check_near("exterior kernel boundary singularity returns 0",
+               ps.calculateExteriorKernel(2.0, 1.0, 1.0), 0.0);
+}
+
+// --- exterior integral tests ---
+
+static void test_exterior_constant_boundary() {
+    // Same mean-value property holds for exterior: constant boundary → constant everywhere outside
+    PoissonSolver ps(1.0);
+    int n = 1000;
+    std::vector<double> boundary(n, 5.0);
+    check_near("exterior constant boundary r=2",   ps.solveExternal(2.0, 0.7, boundary), 5.0, 1e-4);
+    check_near("exterior constant boundary r=10",  ps.solveExternal(10.0, 1.2, boundary), 5.0, 1e-4);
+}
+
+static void test_exterior_known_harmonic() {
+    // For f(θ) = sin(2θ) + C, the exterior harmonic solution is u(r,θ) = C + (r0/r)^2 sin(2θ)
+    PoissonSolver ps(1.0);
+    int n = 1000;
+    std::vector<double> boundary(n);
+    for (int i = 0; i < n; ++i)
+        boundary[i] = std::sin(2.0 * i * 2.0 * M_PI / n) + 4.0;
+    // At r=2, θ=π/4: u = 4 + (1/2)^2 * sin(π/2) = 4.25
+    check_near("exterior known harmonic at r=2 theta=pi/4",
+               ps.solveExternal(2.0, M_PI / 4.0, boundary), 4.25, 1e-4);
+    // At r=3, θ=π/4: u = 4 + (1/3)^2 * sin(π/2) = 4 + 1/9
+    check_near("exterior known harmonic at r=3 theta=pi/4",
+               ps.solveExternal(3.0, M_PI / 4.0, boundary), 4.0 + 1.0/9.0, 1e-4);
+}
+
 int main() {
     std::printf("=== Poisson kernel ===\n");
     test_kernel_at_origin();
@@ -115,6 +168,15 @@ int main() {
     test_integral_constant_boundary();
     test_integral_at_origin_equals_mean();
     test_integral_theta_independence_at_origin();
+
+    std::printf("=== Exterior Poisson kernel ===\n");
+    test_exterior_kernel_positive_outside();
+    test_exterior_kernel_negates_interior();
+    test_exterior_kernel_boundary_singularity();
+
+    std::printf("=== Exterior Poisson integral ===\n");
+    test_exterior_constant_boundary();
+    test_exterior_known_harmonic();
 
     std::printf("\n%s (%d failure(s))\n", failures ? "FAILED" : "PASSED", failures);
     return failures ? 1 : 0;
