@@ -1,6 +1,4 @@
 #include "poisson.h"
-#include <numeric>
-#include <numbers> // pi
 
 PoissonSolver::PoissonSolver(double radius) : r0(radius) {}
 
@@ -20,7 +18,7 @@ double PoissonSolver::calculateKernel(double r, double theta, double phi) const 
 
 double PoissonSolver::solveInternal(double r, double theta, const std::vector<double>& boundaryValues) const {
     int n = boundaryValues.size();
-    double dphi = (2.0 * std::numbers::pi) / n;
+    double dphi = (2.0 * M_PI) / n;
     double sum = 0.0;
     //riemann sum impl, should be computationally pretty doable for smallish n?
     for (int i = 0; i < n; ++i) {
@@ -28,5 +26,5 @@ double PoissonSolver::solveInternal(double r, double theta, const std::vector<do
         double dP = calculateKernel(r, theta, phi);
 	sum += dP * boundaryValues[i] * dphi;
     }
-    return sum / (2.0 * std::numbers::pi);
+    return sum / (2.0 * M_PI);
 }
